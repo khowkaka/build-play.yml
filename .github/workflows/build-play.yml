@@ -17,7 +17,7 @@ jobs:
       - name: Download logo
         run: |
           mkdir -p app/src/main/res/drawable
-          curl -L "https://climamap.com/wp-content/uploads/2026/05/file_0000000043147246ab4e0e57e231795d.png" -o app/src/main/res/drawable/app_logo.png || true
+          curl -L "https://climamap.com/wp-content/uploads/2026/05/file_0000000043147246ab4e0e57e231795d-1.png" -o app/src/main/res/drawable/app_logo.png || true
       - name: Restore signing keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release-keystore.p12

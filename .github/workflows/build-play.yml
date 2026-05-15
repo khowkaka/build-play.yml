@@ -14,10 +14,49 @@ jobs:
           java-version: 17
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
-      - name: Download logo
+      - name: Convert logo to Android safe icons
         run: |
-          mkdir -p app/src/main/res/drawable
-          curl -L "https://climamap.com/wp-content/uploads/2026/05/file_0000000043147246ab4e0e57e231795d-1.png" -o app/src/main/res/drawable/app_logo.png || true
+          python3 -m pip install --quiet pillow
+          mkdir -p app/src/main/res/mipmap-mdpi app/src/main/res/mipmap-hdpi app/src/main/res/mipmap-xhdpi app/src/main/res/mipmap-xxhdpi app/src/main/res/mipmap-xxxhdpi app/src/main/res/mipmap-anydpi-v26 app/src/main/res/drawable
+          if [ -n "https://climamap.com/wp-content/uploads/2026/05/file_0000000043147246ab4e0e57e231795d-1.png" ]; then curl -L "https://climamap.com/wp-content/uploads/2026/05/file_0000000043147246ab4e0e57e231795d-1.png" -o /tmp/source_logo || true; fi
+          cat > /tmp/make_icons.py <<'PY'
+from PIL import Image, ImageOps, ImageDraw
+from pathlib import Path
+src=Path('/tmp/source_logo')
+sizes={'mipmap-mdpi':48,'mipmap-hdpi':72,'mipmap-xhdpi':96,'mipmap-xxhdpi':144,'mipmap-xxxhdpi':192}
+def make_icon(size):
+    try:
+        img=Image.open(src)
+        img=ImageOps.exif_transpose(img)
+        img=img.convert('RGBA')
+    except Exception:
+        img=Image.new('RGBA',(size,size),(30,136,229,255))
+        d=ImageDraw.Draw(img)
+        d.ellipse((int(size*.18),int(size*.18),int(size*.82),int(size*.82)),fill=(255,255,255,255))
+        d.text((int(size*.34),int(size*.38)),'CM',fill=(30,136,229,255))
+        return img
+    img.thumbnail((int(size*.78),int(size*.78)), Image.Resampling.LANCZOS)
+    canvas=Image.new('RGBA',(size,size),(30,136,229,255))
+    canvas.alpha_composite(img,((size-img.width)//2,(size-img.height)//2))
+    return canvas
+for folder,size in sizes.items():
+    out=Path('app/src/main/res')/folder
+    out.mkdir(parents=True,exist_ok=True)
+    icon=make_icon(size)
+    icon.save(out/'ic_launcher.png','PNG',optimize=True)
+    icon.save(out/'ic_launcher_round.png','PNG',optimize=True)
+fg=make_icon(432)
+Path('app/src/main/res/drawable').mkdir(parents=True,exist_ok=True)
+fg.save('app/src/main/res/drawable/ic_launcher_foreground.png','PNG',optimize=True)
+PY
+          python3 /tmp/make_icons.py
+          cat > app/src/main/res/drawable/ic_launcher_background.xml <<'XML'
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle"><solid android:color="#1E88E5"/></shape>
+          XML
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'XML'
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@drawable/ic_launcher_background"/><foreground android:drawable="@drawable/ic_launcher_foreground"/></adaptive-icon>
+          XML
+          cp app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
       - name: Restore signing keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release-keystore.p12

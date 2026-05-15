@@ -14,6 +14,10 @@ jobs:
           java-version: 17
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
+      - name: Download logo
+        run: |
+          mkdir -p app/src/main/res/drawable
+          curl -L "https://climamap.com/wp-content/uploads/2026/05/cropped-1000473664-removebg-preview.png" -o app/src/main/res/drawable/app_logo.png || true
       - name: Restore signing keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release-keystore.p12
